@@ -27,6 +27,7 @@
   - Frequency domain fix: FFT dominant frequency calculation ignores the DC component bin 0.
   - Non-blocking execution: `plt.close()` instead of hanging on `plt.show()`, plus safe `if __name__ == '__main__':` modular packaging.
   - Model persistence: Saves trained model to `har_rf_model.joblib`.
+- **GitHub Sync:** Successfully initialized git, configured `.gitignore`, resolved initial remote README merge, and pushed to `https://github.com/Tanmay221106/Human_Activity_Recognition.git` on branch `main`.
 - `server.py`: Standard library Python HTTP daemon serving static files and JSON API endpoints (`/api/sample-files`, `/api/model-info`, `/api/analyze-file`, `/api/analyze-upload`).
 - `run_ui.py`: One-command launcher script that starts the server and opens the browser automatically.
 - `index.html`: Clean, semantic HTML dashboard.

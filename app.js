@@ -1,31 +1,28 @@
 // =============================================================================
-// HAR SENTINEL — CLIENT APPLICATION LOGIC
-// Integrates MLF (Random Forest), INS (Security Audit), and DAV (Waveform/Timeline)
+// HUMAN ACTIVITY RECOGNITION (HAR) — FRONTEND CONTROLLER
+// Clean, intuitive workflow: Upload CSV -> Instant Activity Classification
 // =============================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
   // DOM Elements
-  const sampleSelect = document.getElementById('sample-select');
   const uploadZone = document.getElementById('upload-zone');
   const fileInput = document.getElementById('file-input');
   const btnAnalyze = document.getElementById('btn-analyze');
-  const activeFileIndicator = document.getElementById('active-file-indicator');
+  const activeFileLabel = document.getElementById('active-file-label');
+  const sampleBtns = document.querySelectorAll('.sample-btn');
 
-  // MLF Elements
-  const primaryActivityText = document.getElementById('primary-activity-text');
-  const activityDetailSub = document.getElementById('activity-detail-sub');
-  const confBadge = document.getElementById('conf-badge');
-  const totalWindowsCount = document.getElementById('total-windows-count');
+  // Hero Result Elements
+  const activityIcon = document.getElementById('activity-icon');
+  const primaryActivityName = document.getElementById('primary-activity-name');
+  const confidenceVal = document.getElementById('confidence-val');
+  const statDuration = document.getElementById('stat-duration');
+  const statSamples = document.getElementById('stat-samples');
+  const statWindows = document.getElementById('stat-windows');
+  const statSecurity = document.getElementById('stat-security');
   const distributionBars = document.getElementById('distribution-bars');
-
-  // INS Elements
-  const secStatusBadge = document.getElementById('sec-status-badge');
   const secHash = document.getElementById('sec-hash');
-  const secSpoofing = document.getElementById('sec-spoofing');
-  const secMonotonicity = document.getElementById('sec-monotonicity');
-  const btnCopyHash = document.getElementById('btn-copy-hash');
 
-  // DAV Waveform Elements
+  // Waveform Elements
   const canvas = document.getElementById('waveform-canvas');
   const ctx = canvas.getContext('2d');
   const tooltip = document.getElementById('waveform-tooltip');
@@ -33,56 +30,58 @@ document.addEventListener('DOMContentLoaded', () => {
   const toggleGyro = document.getElementById('toggle-gyro');
   const waveformLegend = document.getElementById('waveform-legend');
 
-  // DAV Timeline Elements
-  const timelineBar = document.getElementById('timeline-bar');
-  const segmentsBody = document.getElementById('segments-body');
-
   // Modal Elements
   const btnOpenMetrics = document.getElementById('btn-open-metrics');
   const btnCloseMetrics = document.getElementById('btn-close-metrics');
   const metricsModal = document.getElementById('metrics-modal');
   const cmTable = document.getElementById('cm-table');
   const featuresList = document.getElementById('features-list');
-  const classReportBody = document.getElementById('class-report-body');
   const metaAccuracy = document.getElementById('meta-accuracy');
 
+  // Activity Icons Mapping
+  const ACTIVITY_ICONS = {
+    'walking': '🚶',
+    'standing': '🧍',
+    'sitting': '🪑',
+    'sleeping': '🛌',
+    'running': '🏃'
+  };
+
   // State
+  let currentFile = 'cleaned_sensor_data.csv';
+  let uploadedBytes = null;
   let currentWaveform = null;
-  let activeChannel = 'acc'; // 'acc' or 'gyro'
-  let uploadedFileBytes = null;
-  let uploadedFileName = null;
-  let modelMetadata = null;
+  let activeChannel = 'acc';
 
   // Initialize
-  loadModelInfo();
-  // Auto-run first sample for instant display
-  setTimeout(() => {
-    analyzeSelectedFile();
-  }, 400);
+  loadModelMetadata();
+  analyzeFile(currentFile);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Event Listeners
+  // User Actions
   // ─────────────────────────────────────────────────────────────────────────
 
-  btnAnalyze.addEventListener('click', () => {
-    if (uploadedFileBytes) {
-      analyzeUploadedFile();
-    } else {
-      analyzeSelectedFile();
+  // Sample buttons
+  sampleBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      sampleBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFile = btn.getAttribute('data-file');
+      uploadedBytes = null;
+      activeFileLabel.textContent = `Active file: ${currentFile}`;
+      analyzeFile(currentFile);
+    });
+  });
+
+  // Upload trigger
+  uploadZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFileUpload(e.target.files[0]);
     }
   });
 
-  sampleSelect.addEventListener('change', () => {
-    uploadedFileBytes = null;
-    uploadedFileName = null;
-    activeFileIndicator.textContent = 'Selected: ' + sampleSelect.value;
-    activeFileIndicator.className = 'badge-status';
-  });
-
-  // Drag & drop upload
-  uploadZone.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', handleFileSelect);
-
+  // Drag and drop
   uploadZone.addEventListener('dragover', (e) => {
     e.preventDefault();
     uploadZone.classList.add('drag-over');
@@ -96,7 +95,16 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     uploadZone.classList.remove('drag-over');
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processUploadedFile(e.dataTransfer.files[0]);
+      handleFileUpload(e.dataTransfer.files[0]);
+    }
+  });
+
+  // Analyze button
+  btnAnalyze.addEventListener('click', () => {
+    if (uploadedBytes) {
+      analyzeUploadedBytes();
+    } else {
+      analyzeFile(currentFile);
     }
   });
 
@@ -105,74 +113,45 @@ document.addEventListener('DOMContentLoaded', () => {
     activeChannel = 'acc';
     toggleAcc.classList.add('active');
     toggleGyro.classList.remove('active');
-    renderWaveform();
+    drawWaveform();
   });
 
   toggleGyro.addEventListener('click', () => {
     activeChannel = 'gyro';
     toggleGyro.classList.add('active');
     toggleAcc.classList.remove('active');
-    renderWaveform();
-  });
-
-  // Copy SHA-256
-  btnCopyHash.addEventListener('click', () => {
-    if (secHash.textContent && secHash.textContent !== '--') {
-      navigator.clipboard.writeText(secHash.textContent).then(() => {
-        btnCopyHash.textContent = 'Copied';
-        setTimeout(() => { btnCopyHash.textContent = 'Copy'; }, 1500);
-      });
-    }
-  });
-
-  // Modal open/close
-  btnOpenMetrics.addEventListener('click', () => metricsModal.classList.remove('hidden'));
-  btnCloseMetrics.addEventListener('click', () => metricsModal.classList.add('hidden'));
-  metricsModal.addEventListener('click', (e) => {
-    if (e.target === metricsModal) metricsModal.classList.add('hidden');
+    drawWaveform();
   });
 
   // Waveform canvas hover inspection
   canvas.addEventListener('mousemove', handleWaveformHover);
   canvas.addEventListener('mouseleave', () => tooltip.classList.add('hidden'));
 
+  // Modal toggle
+  btnOpenMetrics.addEventListener('click', () => metricsModal.classList.remove('hidden'));
+  btnCloseMetrics.addEventListener('click', () => metricsModal.classList.add('hidden'));
+  metricsModal.addEventListener('click', (e) => {
+    if (e.target === metricsModal) metricsModal.classList.add('hidden');
+  });
+
   // ─────────────────────────────────────────────────────────────────────────
-  // Handlers & API Operations
+  // File Upload & API Handling
   // ─────────────────────────────────────────────────────────────────────────
 
-  function handleFileSelect(e) {
-    if (e.target.files && e.target.files[0]) {
-      processUploadedFile(e.target.files[0]);
-    }
-  }
-
-  function processUploadedFile(file) {
-    uploadedFileName = file.name;
+  function handleFileUpload(file) {
+    sampleBtns.forEach(b => b.classList.remove('active'));
+    activeFileLabel.textContent = `Uploaded custom file: ${file.name} (${Math.round(file.size / 1024)} KB)`;
+    
     const reader = new FileReader();
     reader.onload = (evt) => {
-      uploadedFileBytes = evt.target.result;
-      activeFileIndicator.textContent = 'Uploaded: ' + file.name;
-      activeFileIndicator.className = 'badge-status verified';
-      analyzeUploadedFile();
+      uploadedBytes = evt.target.result;
+      analyzeUploadedBytes();
     };
     reader.readAsArrayBuffer(file);
   }
 
-  async function loadModelInfo() {
-    try {
-      const res = await fetch('/api/model-info');
-      if (!res.ok) return;
-      modelMetadata = await res.json();
-      renderModalMetrics(modelMetadata);
-    } catch (e) {
-      console.warn('Could not load model info:', e);
-    }
-  }
-
-  async function analyzeSelectedFile() {
-    const filename = sampleSelect.value;
-    setLoadingState(true);
-
+  async function analyzeFile(filename) {
+    setLoading(true);
     try {
       const res = await fetch('/api/analyze-file', {
         method: 'POST',
@@ -180,126 +159,122 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({ filename })
       });
       const data = await res.json();
-      setLoadingState(false);
+      setLoading(false);
 
       if (data.success) {
-        populateDashboard(data);
+        renderResults(data);
       } else {
-        alert('Analysis Error: ' + (data.error || 'Unknown error'));
+        alert('Could not analyze file: ' + (data.error || 'Unknown error'));
       }
     } catch (err) {
-      setLoadingState(false);
+      setLoading(false);
       console.error(err);
-      alert('Network or server connection failed.');
+      alert('Connection error with the local server.');
     }
   }
 
-  async function analyzeUploadedFile() {
-    if (!uploadedFileBytes) return;
-    setLoadingState(true);
+  async function analyzeUploadedBytes() {
+    if (!uploadedBytes) return;
+    setLoading(true);
 
     try {
       const res = await fetch('/api/analyze-upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/octet-stream' },
-        body: uploadedFileBytes
+        body: uploadedBytes
       });
       const data = await res.json();
-      setLoadingState(false);
+      setLoading(false);
 
       if (data.success) {
-        populateDashboard(data);
+        renderResults(data);
       } else {
-        alert('Analysis Error: ' + (data.error || 'Failed to parse upload'));
+        alert('Could not parse uploaded CSV: ' + (data.error || 'Please check file format'));
       }
     } catch (err) {
-      setLoadingState(false);
+      setLoading(false);
       console.error(err);
-      alert('Upload analysis failed.');
+      alert('Upload error. Ensure the server is running.');
     }
   }
 
-  function setLoadingState(isLoading) {
+  function setLoading(isLoading) {
     if (isLoading) {
-      btnAnalyze.textContent = 'Processing Telemetry...';
+      btnAnalyze.textContent = 'Classifying...';
       btnAnalyze.disabled = true;
     } else {
-      btnAnalyze.textContent = 'Run Inference & Audit';
+      btnAnalyze.textContent = 'Analyze Activity';
       btnAnalyze.disabled = false;
     }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Populate Dashboard UI
+  // Render Results
   // ─────────────────────────────────────────────────────────────────────────
 
-  function populateDashboard(data) {
-    // 1. MLF Pillar
-    primaryActivityText.textContent = data.primary_activity;
-    confBadge.textContent = `${data.overall_confidence}% Conf`;
-    activityDetailSub.textContent = `Analyzed ${data.total_samples} raw sensor rows into ${data.total_windows} windows.`;
-    totalWindowsCount.textContent = `${data.total_windows} Windows`;
+  function renderResults(data) {
+    const act = (data.primary_activity || 'Unknown').toLowerCase();
+    
+    // 1. Hero Card
+    activityIcon.textContent = ACTIVITY_ICONS[act] || '🏃';
+    primaryActivityName.textContent = act;
+    confidenceVal.textContent = `${data.overall_confidence}%`;
 
-    // Distribution bars
+    statDuration.textContent = data.duration || '~1m';
+    statSamples.textContent = `${data.total_samples.toLocaleString()} rows`;
+    statWindows.textContent = data.total_windows;
+    
+    const isSafe = data.security && !data.security.spoofing_detected;
+    statSecurity.textContent = isSafe ? 'Verified Safe' : 'Anomaly Alert';
+    statSecurity.style.color = isSafe ? 'var(--text-main)' : '#d17a7a';
+
+    // 2. Activity Breakdown Bars
     const dist = data.distribution || {};
     const activities = ['walking', 'standing', 'sitting', 'sleeping'];
     let distHtml = '';
-    activities.forEach(act => {
-      const pct = dist[act] || 0;
+    activities.forEach(a => {
+      const pct = dist[a] || 0;
+      const icon = ACTIVITY_ICONS[a] || '•';
       distHtml += `
-        <div class="dist-item">
-          <span class="dist-name">${act}</span>
-          <div class="dist-bar-track">
-            <div class="dist-bar-fill" style="width: ${pct}%"></div>
+        <div class="dist-row">
+          <span class="dist-name">${icon} ${a}</span>
+          <div class="dist-track">
+            <div class="dist-fill" style="width: ${pct}%"></div>
           </div>
-          <span class="dist-val">${pct}%</span>
+          <span class="dist-pct">${pct}%</span>
         </div>
       `;
     });
     distributionBars.innerHTML = distHtml;
 
-    // 2. INS Pillar: Telemetry Security & Integrity
-    const sec = data.security || {};
-    secHash.textContent = sec.sha256 || '--';
-    secStatusBadge.textContent = sec.integrity_status || 'Verified';
-    secStatusBadge.className = 'badge-status ' + (sec.spoofing_detected ? '' : 'verified');
+    // 3. Security SHA
+    secHash.textContent = (data.security && data.security.sha256) ? data.security.sha256 : '--';
 
-    if (sec.spoofing_detected) {
-      secSpoofing.innerHTML = `<span style="color: #d17a7a;">Warning: ${sec.anomalies.join(', ')}</span>`;
-    } else {
-      secSpoofing.textContent = `Passed • Within biomechanical thresholds (±16g, ±2000°/s)`;
-    }
-
-    secMonotonicity.textContent = `Passed • ${sec.packet_count} packets verified with monotonic timestamps (~0.5s intervals)`;
-
-    // 3. DAV Pillar: Waveform
+    // 4. Waveform
     currentWaveform = data.waveform;
-    renderWaveform();
-
-    // 4. DAV Pillar: Timeline Segmentation
-    renderTimeline(data.segments, data.total_windows);
+    drawWaveform();
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Waveform Rendering (Canvas)
+  // Waveform Visualizer
   // ─────────────────────────────────────────────────────────────────────────
 
-  function renderWaveform() {
+  function drawWaveform() {
     if (!currentWaveform || !currentWaveform.time) return;
 
     const w = canvas.width;
     const h = canvas.height;
     ctx.clearRect(0, 0, w, h);
 
-    const padLeft = 45;
-    const padRight = 20;
-    const padTop = 20;
-    const padBottom = 30;
+    const padLeft = 40;
+    const padRight = 16;
+    const padTop = 16;
+    const padBottom = 26;
     const plotW = w - padLeft - padRight;
     const plotH = h - padTop - padBottom;
 
-    // Draw background grid lines (subtle triple-tone border)
-    ctx.strokeStyle = '#222d3f';
+    // Background horizontal grid lines
+    ctx.strokeStyle = '#1e2634';
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let i = 0; i <= 4; i++) {
@@ -309,37 +284,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     ctx.stroke();
 
-    // Channel traces configuration (strictly restrained triple-tone)
+    // Trace definitions (Strictly restrained triple-tone)
     let traces = [];
     if (activeChannel === 'acc') {
       traces = [
-        { key: 'ax', label: 'ax (g)', color: '#68869c', width: 1.2 },
-        { key: 'ay', label: 'ay (g)', color: '#8ea8ba', width: 1.2 },
-        { key: 'az', label: 'az (g)', color: '#445f73', width: 1.2 },
-        { key: 'acc_mag', label: '|a| Mag', color: '#3a7596', width: 2.0 }
+        { key: 'ax', color: '#667d94', width: 1.2 },
+        { key: 'ay', color: '#889eb3', width: 1.2 },
+        { key: 'az', color: '#45596e', width: 1.2 },
+        { key: 'acc_mag', color: '#3b82a6', width: 2.2 }
       ];
       waveformLegend.innerHTML = `
-        <div class="legend-item"><span class="legend-indicator" style="background:#68869c;"></span> ax (g)</div>
-        <div class="legend-item"><span class="legend-indicator" style="background:#8ea8ba;"></span> ay (g)</div>
-        <div class="legend-item"><span class="legend-indicator" style="background:#445f73;"></span> az (g)</div>
-        <div class="legend-item"><span class="legend-indicator" style="background:#3a7596; height: 4px;"></span> |a| Magnitude (Filtered)</div>
+        <div class="legend-chip"><span class="legend-line" style="background:#667d94"></span> ax (g)</div>
+        <div class="legend-chip"><span class="legend-line" style="background:#889eb3"></span> ay (g)</div>
+        <div class="legend-chip"><span class="legend-line" style="background:#45596e"></span> az (g)</div>
+        <div class="legend-chip"><span class="legend-line" style="background:#3b82a6; height: 4px;"></span> |a| Magnitude</div>
       `;
     } else {
       traces = [
-        { key: 'gx', label: 'gx (°/s)', color: '#68869c', width: 1.2 },
-        { key: 'gy', label: 'gy (°/s)', color: '#8ea8ba', width: 1.2 },
-        { key: 'gz', label: 'gz (°/s)', color: '#445f73', width: 1.2 },
-        { key: 'gyro_mag', label: '|ω| Mag', color: '#3a7596', width: 2.0 }
+        { key: 'gx', color: '#667d94', width: 1.2 },
+        { key: 'gy', color: '#889eb3', width: 1.2 },
+        { key: 'gz', color: '#45596e', width: 1.2 },
+        { key: 'gyro_mag', color: '#3b82a6', width: 2.2 }
       ];
       waveformLegend.innerHTML = `
-        <div class="legend-item"><span class="legend-indicator" style="background:#68869c;"></span> gx (°/s)</div>
-        <div class="legend-item"><span class="legend-indicator" style="background:#8ea8ba;"></span> gy (°/s)</div>
-        <div class="legend-item"><span class="legend-indicator" style="background:#445f73;"></span> gz (°/s)</div>
-        <div class="legend-item"><span class="legend-indicator" style="background:#3a7596; height: 4px;"></span> |ω| Gyro Magnitude</div>
+        <div class="legend-chip"><span class="legend-line" style="background:#667d94"></span> gx (°/s)</div>
+        <div class="legend-chip"><span class="legend-line" style="background:#889eb3"></span> gy (°/s)</div>
+        <div class="legend-chip"><span class="legend-line" style="background:#45596e"></span> gz (°/s)</div>
+        <div class="legend-chip"><span class="legend-line" style="background:#3b82a6; height: 4px;"></span> |ω| Gyro Magnitude</div>
       `;
     }
 
-    // Determine scale
+    // Min / Max computation
     let minVal = Infinity;
     let maxVal = -Infinity;
     traces.forEach(t => {
@@ -357,17 +332,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const valRange = maxVal - minVal;
 
-    // Draw Y axis labels
+    // Y-Axis labels
     ctx.fillStyle = '#576575';
     ctx.font = '10px monospace';
     ctx.textAlign = 'right';
     for (let i = 0; i <= 4; i++) {
       const y = padTop + (plotH / 4) * i;
       const v = maxVal - (valRange / 4) * i;
-      ctx.fillText(v.toFixed(1), padLeft - 8, y + 3);
+      ctx.fillText(v.toFixed(1), padLeft - 6, y + 3);
     }
 
-    // Plot traces
+    // Draw traces
     const n = currentWaveform.time.length;
     traces.forEach(t => {
       const arr = currentWaveform[t.key];
@@ -388,14 +363,14 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.stroke();
     });
 
-    // Time axis labels (first, middle, last)
+    // Time labels
     ctx.textAlign = 'center';
     if (n > 0) {
-      ctx.fillText(currentWaveform.time[0] || '0', padLeft, h - 10);
+      ctx.fillText(currentWaveform.time[0] || '0', padLeft, h - 8);
       if (n > 2) {
-        ctx.fillText(currentWaveform.time[Math.floor(n / 2)] || '', padLeft + plotW / 2, h - 10);
+        ctx.fillText(currentWaveform.time[Math.floor(n / 2)] || '', padLeft + plotW / 2, h - 8);
       }
-      ctx.fillText(currentWaveform.time[n - 1] || '', padLeft + plotW, h - 10);
+      ctx.fillText(currentWaveform.time[n - 1] || '', padLeft + plotW, h - 8);
     }
   }
 
@@ -404,8 +379,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
-    const padLeft = 45;
-    const padRight = 20;
+    const padLeft = 40;
+    const padRight = 16;
     const plotW = canvas.width - padLeft - padRight;
     const scaleRatio = canvas.width / rect.width;
     const scaledMouseX = mouseX * scaleRatio;
@@ -420,119 +395,66 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const t = currentWaveform.time[idx];
     if (activeChannel === 'acc') {
-      tooltip.innerHTML = `<strong>${t}</strong><br>ax: ${currentWaveform.ax[idx]}g | ay: ${currentWaveform.ay[idx]}g | az: ${currentWaveform.az[idx]}g<br>|a| Mag: ${currentWaveform.acc_mag[idx]}g`;
+      tooltip.innerHTML = `<strong>${t}</strong><br>ax: ${currentWaveform.ax[idx]}g | ay: ${currentWaveform.ay[idx]}g | az: ${currentWaveform.az[idx]}g<br>|a|: ${currentWaveform.acc_mag[idx]}g`;
     } else {
-      tooltip.innerHTML = `<strong>${t}</strong><br>gx: ${currentWaveform.gx[idx]} | gy: ${currentWaveform.gy[idx]} | gz: ${currentWaveform.gz[idx]}<br>|ω| Mag: ${currentWaveform.gyro_mag[idx]}`;
+      tooltip.innerHTML = `<strong>${t}</strong><br>gx: ${currentWaveform.gx[idx]} | gy: ${currentWaveform.gy[idx]} | gz: ${currentWaveform.gz[idx]}<br>|ω|: ${currentWaveform.gyro_mag[idx]}`;
     }
     tooltip.classList.remove('hidden');
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Timeline Segmentation (DAV)
+  // Modal Metadata Loading
   // ─────────────────────────────────────────────────────────────────────────
 
-  function renderTimeline(segments, totalWindows) {
-    if (!segments || segments.length === 0) {
-      timelineBar.innerHTML = `<div class="timeline-empty-hint">No segments available</div>`;
-      segmentsBody.innerHTML = `<tr><td colspan="5" class="empty-row">No segments detected.</td></tr>`;
-      return;
-    }
+  async function loadModelMetadata() {
+    try {
+      const res = await fetch('/api/model-info');
+      if (!res.ok) return;
+      const meta = await res.json();
+      
+      if (meta.accuracy) {
+        metaAccuracy.textContent = `${meta.accuracy}%`;
+      }
 
-    // 1. Visual segmented bar
-    let barHtml = '';
-    segments.forEach(seg => {
-      const pct = (seg.window_count / totalWindows) * 100;
-      const actClass = `seg-${seg.activity.toLowerCase()}`;
-      barHtml += `
-        <div class="timeline-segment-chunk ${actClass}" style="width: ${pct}%" title="${seg.activity}: ${seg.start_time} - ${seg.end_time} (${seg.window_count} wins)">
-          ${pct > 8 ? seg.activity : ''}
-        </div>
-      `;
-    });
-    timelineBar.innerHTML = barHtml;
+      if (meta.confusion_matrix) {
+        const labels = meta.confusion_matrix.labels;
+        const matrix = meta.confusion_matrix.matrix;
 
-    // 2. Table rows
-    let tableHtml = '';
-    segments.forEach(seg => {
-      tableHtml += `
-        <tr>
-          <td><code>${seg.start_time}</code></td>
-          <td><code>${seg.end_time}</code></td>
-          <td style="font-weight: 500; text-transform: capitalize;">${seg.activity}</td>
-          <td>${seg.window_count} (${Math.round((seg.window_count / totalWindows) * 100)}%)</td>
-          <td>${seg.avg_confidence}%</td>
-        </tr>
-      `;
-    });
-    segmentsBody.innerHTML = tableHtml;
-  }
+        let cmHtml = '<thead><tr><th>Actual \\ Pred</th>';
+        labels.forEach(l => { cmHtml += `<th>${l}</th>`; });
+        cmHtml += '</tr></thead><tbody>';
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Modal Metrics Population (MLF · DAV Capstone Evaluation)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  function renderModalMetrics(meta) {
-    if (!meta) return;
-
-    if (meta.accuracy) {
-      metaAccuracy.textContent = `${meta.accuracy}%`;
-    }
-
-    // Confusion Matrix
-    if (meta.confusion_matrix) {
-      const labels = meta.confusion_matrix.labels;
-      const matrix = meta.confusion_matrix.matrix;
-
-      let cmHtml = '<thead><tr><th>Actual \\ Pred</th>';
-      labels.forEach(l => { cmHtml += `<th>${l}</th>`; });
-      cmHtml += '</tr></thead><tbody>';
-
-      matrix.forEach((row, rIdx) => {
-        cmHtml += `<tr><th>${labels[rIdx]}</th>`;
-        row.forEach((val, cIdx) => {
-          const isDiag = (rIdx === cIdx);
-          cmHtml += `<td class="${isDiag ? 'diag-cell' : ''}">${val}</td>`;
+        matrix.forEach((row, rIdx) => {
+          cmHtml += `<tr><th>${labels[rIdx]}</th>`;
+          row.forEach((val, cIdx) => {
+            const isDiag = (rIdx === cIdx);
+            cmHtml += `<td class="${isDiag ? 'diag-cell' : ''}">${val}</td>`;
+          });
+          cmHtml += `</tr>`;
         });
-        cmHtml += `</tr>`;
-      });
-      cmHtml += '</tbody>';
-      cmTable.innerHTML = cmHtml;
-    }
+        cmHtml += '</tbody>';
+        cmTable.innerHTML = cmHtml;
+      }
 
-    // Top Features
-    if (meta.top_features) {
-      const maxImp = meta.top_features[0]?.importance || 0.1;
-      let featHtml = '';
-      meta.top_features.slice(0, 10).forEach(f => {
-        const pct = (f.importance / maxImp) * 100;
-        featHtml += `
-          <div class="feat-item">
-            <span class="feat-name" title="${f.feature}">${f.feature}</span>
-            <div class="feat-bar-track">
-              <div class="feat-bar-fill" style="width: ${pct}%"></div>
+      if (meta.top_features) {
+        const maxImp = meta.top_features[0]?.importance || 0.1;
+        let featHtml = '';
+        meta.top_features.slice(0, 10).forEach(f => {
+          const pct = (f.importance / maxImp) * 100;
+          featHtml += `
+            <div class="feat-row">
+              <span class="feat-lbl" title="${f.feature}">${f.feature}</span>
+              <div class="feat-track">
+                <div class="feat-fill" style="width: ${pct}%"></div>
+              </div>
+              <span class="feat-num">${f.importance}</span>
             </div>
-            <span class="feat-val">${f.importance}</span>
-          </div>
-        `;
-      });
-      featuresList.innerHTML = featHtml;
-    }
-
-    // Class Performance Breakdown
-    if (meta.metrics_per_class) {
-      let repHtml = '';
-      Object.entries(meta.metrics_per_class).forEach(([cls, m]) => {
-        repHtml += `
-          <tr>
-            <td>${cls}</td>
-            <td>${m.precision}%</td>
-            <td>${m.recall}%</td>
-            <td>${m.f1}%</td>
-            <td>${m.support}</td>
-          </tr>
-        `;
-      });
-      classReportBody.innerHTML = repHtml;
+          `;
+        });
+        featuresList.innerHTML = featHtml;
+      }
+    } catch (e) {
+      console.warn('Model metadata error:', e);
     }
   }
 });
