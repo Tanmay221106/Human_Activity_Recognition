@@ -1,0 +1,215 @@
+{
+  "accuracy": 85.02,
+  "total_train_samples": 2099,
+  "total_test_samples": 701,
+  "classes": [
+    "sitting",
+    "sleeping",
+    "standing",
+    "walking"
+  ],
+  "feature_names": [
+    "ax_mean",
+    "ax_std",
+    "ax_var",
+    "ax_min",
+    "ax_max",
+    "ax_rms",
+    "ax_median",
+    "ax_dom_freq",
+    "ax_spec_energy",
+    "ax_spec_entropy",
+    "ay_mean",
+    "ay_std",
+    "ay_var",
+    "ay_min",
+    "ay_max",
+    "ay_rms",
+    "ay_median",
+    "ay_dom_freq",
+    "ay_spec_energy",
+    "ay_spec_entropy",
+    "az_mean",
+    "az_std",
+    "az_var",
+    "az_min",
+    "az_max",
+    "az_rms",
+    "az_median",
+    "az_dom_freq",
+    "az_spec_energy",
+    "az_spec_entropy",
+    "gx_mean",
+    "gx_std",
+    "gx_var",
+    "gx_min",
+    "gx_max",
+    "gx_rms",
+    "gx_median",
+    "gx_dom_freq",
+    "gx_spec_energy",
+    "gx_spec_entropy",
+    "gy_mean",
+    "gy_std",
+    "gy_var",
+    "gy_min",
+    "gy_max",
+    "gy_rms",
+    "gy_median",
+    "gy_dom_freq",
+    "gy_spec_energy",
+    "gy_spec_entropy",
+    "gz_mean",
+    "gz_std",
+    "gz_var",
+    "gz_min",
+    "gz_max",
+    "gz_rms",
+    "gz_median",
+    "gz_dom_freq",
+    "gz_spec_energy",
+    "gz_spec_entropy",
+    "acc_mag_mean",
+    "acc_mag_std",
+    "acc_mag_var",
+    "acc_mag_min",
+    "acc_mag_max",
+    "acc_mag_rms",
+    "acc_mag_median",
+    "acc_mag_dom_freq",
+    "acc_mag_spec_energy",
+    "acc_mag_spec_entropy",
+    "gyro_mag_mean",
+    "gyro_mag_std",
+    "gyro_mag_var",
+    "gyro_mag_min",
+    "gyro_mag_max",
+    "gyro_mag_rms",
+    "gyro_mag_median",
+    "gyro_mag_dom_freq",
+    "gyro_mag_spec_energy",
+    "gyro_mag_spec_entropy"
+  ],
+  "confusion_matrix": {
+    "labels": [
+      "sitting",
+      "sleeping",
+      "standing",
+      "walking"
+    ],
+    "matrix": [
+      [
+        170,
+        13,
+        0,
+        0
+      ],
+      [
+        1,
+        99,
+        0,
+        0
+      ],
+      [
+        87,
+        0,
+        100,
+        3
+      ],
+      [
+        0,
+        0,
+        1,
+        227
+      ]
+    ]
+  },
+  "top_features": [
+    {
+      "feature": "ay_max",
+      "importance": 0.076
+    },
+    {
+      "feature": "ay_mean",
+      "importance": 0.0646
+    },
+    {
+      "feature": "gyro_mag_median",
+      "importance": 0.0507
+    },
+    {
+      "feature": "ay_median",
+      "importance": 0.0458
+    },
+    {
+      "feature": "gyro_mag_min",
+      "importance": 0.0408
+    },
+    {
+      "feature": "gy_var",
+      "importance": 0.0404
+    },
+    {
+      "feature": "gy_std",
+      "importance": 0.0395
+    },
+    {
+      "feature": "ay_min",
+      "importance": 0.0374
+    },
+    {
+      "feature": "gyro_mag_mean",
+      "importance": 0.0303
+    },
+    {
+      "feature": "gy_rms",
+      "importance": 0.026
+    },
+    {
+      "feature": "gyro_mag_spec_energy",
+      "importance": 0.0234
+    },
+    {
+      "feature": "gyro_mag_std",
+      "importance": 0.0231
+    },
+    {
+      "feature": "ay_rms",
+      "importance": 0.0229
+    },
+    {
+      "feature": "gyro_mag_rms",
+      "importance": 0.0227
+    },
+    {
+      "feature": "ay_spec_energy",
+      "importance": 0.0203
+    }
+  ],
+  "metrics_per_class": {
+    "sitting": {
+      "precision": 65.9,
+      "recall": 92.9,
+      "f1": 77.1,
+      "support": 183
+    },
+    "sleeping": {
+      "precision": 88.4,
+      "recall": 99.0,
+      "f1": 93.4,
+      "support": 100
+    },
+    "standing": {
+      "precision": 99.0,
+      "recall": 52.6,
+      "f1": 68.7,
+      "support": 190
+    },
+    "walking": {
+      "precision": 98.7,
+      "recall": 99.6,
+      "f1": 99.1,
+      "support": 228
+    }
+  }
+}

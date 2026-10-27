@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HAR Sentinel — Human Activity Recognition</title>
+  <meta name="description" content="Human Activity Recognition system integrating Machine Learning Fundamentals, Information & Network Security, and Data Analysis & Visualization.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="brand-symbol">HAR</div>
+        <div class="brand-info">
+          <h1 class="brand-title">HAR Sentinel</h1>
+          <p class="brand-subtitle">Human Activity Recognition • MPU6050 6-Axis Telemetry</p>
+        </div>
+      </div>
+      
+      <div class="header-badges">
+        <span class="pillar-tag">MLF • Random Forest</span>
+        <span class="pillar-tag">INS • Telemetry Hash</span>
+        <span class="pillar-tag">DAV • Time-Series</span>
+      </div>
+
+      <div class="header-actions">
+        <button id="btn-open-metrics" class="btn-subtle" title="View Capstone Evaluation Metrics">
+          Model Evaluation
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Operational Workspace -->
+    <main class="dashboard-grid">
+      
+      <!-- Top Row: File Input, Primary Prediction, Security Audit -->
+      <section class="top-row-grid">
+        
+        <!-- Input & Session Ingest Card -->
+        <div class="card card-input">
+          <div class="card-header">
+            <span class="card-label">Sensor Telemetry Input</span>
+            <span id="active-file-indicator" class="badge-status">Ready</span>
+          </div>
+
+          <div class="card-body">
+            <div class="form-group">
+              <label for="sample-select" class="field-label">Preloaded Session</label>
+              <select id="sample-select" class="select-field">
+                <option value="cleaned_sensor_data.csv">Cleaned Walking Excerpt (14 KB)</option>
+                <option value="walking.csv">Walking Session (834 KB)</option>
+                <option value="standing.csv">Standing Session (677 KB)</option>
+                <option value="sitting.csv">Sitting Session (656 KB)</option>
+                <option value="sleeping.csv">Sleeping Session (361 KB)</option>
+              </select>
+            </div>
+
+            <div class="upload-dropzone" id="upload-zone">
+              <input type="file" id="file-input" accept=".csv,.txt" class="file-input-hidden">
+              <div class="dropzone-content">
+                <span class="dropzone-text">Drop a custom sensor CSV or click to browse</span>
+                <span class="dropzone-subtext">Supports raw serial strings (ax=... ay=...) &amp; standard CSV</span>
+              </div>
+            </div>
+
+            <button id="btn-analyze" class="btn-primary">
+              Run Inference &amp; Audit
+            </button>
+          </div>
+        </div>
+
+        <!-- MLF: Activity Classification Result Card -->
+        <div class="card card-result">
+          <div class="card-header">
+            <span class="card-label">MLF • Activity Classification</span>
+            <span id="conf-badge" class="badge-confidence">-- % Conf</span>
+          </div>
+
+          <div class="card-body result-body">
+            <div class="activity-display">
+              <div class="activity-eyebrow">Detected Primary Activity</div>
+              <div id="primary-activity-text" class="activity-title">Awaiting Input</div>
+              <div id="activity-detail-sub" class="activity-sub">Select or upload a sensor file to evaluate</div>
+            </div>
+
+            <div class="distribution-container">
+              <div class="dist-header">
+                <span class="dist-label">Activity Distribution</span>
+                <span id="total-windows-count" class="dist-count">0 Windows Analyzed</span>
+              </div>
+              <div class="dist-bars" id="distribution-bars">
+                <!-- Injected via JS -->
+                <div class="dist-item"><span class="dist-name">Walking</span><div class="dist-bar-track"><div class="dist-bar-fill" style="width: 0%"></div></div><span class="dist-val">0%</span></div>
+                <div class="dist-item"><span class="dist-name">Standing</span><div class="dist-bar-track"><div class="dist-bar-fill" style="width: 0%"></div></div><span class="dist-val">0%</span></div>
+                <div class="dist-item"><span class="dist-name">Sitting</span><div class="dist-bar-track"><div class="dist-bar-fill" style="width: 0%"></div></div><span class="dist-val">0%</span></div>
+                <div class="dist-item"><span class="dist-name">Sleeping</span><div class="dist-bar-track"><div class="dist-bar-fill" style="width: 0%"></div></div><span class="dist-val">0%</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- INS: Telemetry Security & Integrity Card -->
+        <div class="card card-security">
+          <div class="card-header">
+            <span class="card-label">INS • Telemetry Security Shield</span>
+            <span id="sec-status-badge" class="badge-status">Pending</span>
+          </div>
+
+          <div class="card-body">
+            <div class="sec-item">
+              <div class="sec-title">Cryptographic SHA-256 Digest</div>
+              <div class="sec-hash-box">
+                <code id="sec-hash">--</code>
+                <button id="btn-copy-hash" class="btn-icon" title="Copy SHA-256 Checksum">Copy</button>
+              </div>
+            </div>
+
+            <div class="sec-item">
+              <div class="sec-title">Biomechanical Spoofing Check</div>
+              <div id="sec-spoofing" class="sec-value">MPU6050 Boundary &amp; Variance Audits</div>
+            </div>
+
+            <div class="sec-item">
+              <div class="sec-title">Stream Integrity &amp; Monotonicity</div>
+              <div id="sec-monotonicity" class="sec-value">Time continuity verification</div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- DAV: Sensor Time-Series Waveforms -->
+      <section class="card card-waveform">
+        <div class="card-header">
+          <div class="header-left">
+            <span class="card-label">DAV • Sensor Time-Series Analysis</span>
+            <span class="channel-hint">Butterworth Low-pass Filtered • ~2Hz Sampling</span>
+          </div>
+          <div class="channel-toggles">
+            <button id="toggle-acc" class="btn-toggle active" data-channel="acc">Accelerometer (ax, ay, az, |a|)</button>
+            <button id="toggle-gyro" class="btn-toggle" data-channel="gyro">Gyroscope (gx, gy, gz, |ω|)</button>
+          </div>
+        </div>
+
+        <div class="waveform-container">
+          <canvas id="waveform-canvas" width="1100" height="240"></canvas>
+          <div id="waveform-tooltip" class="waveform-tooltip hidden"></div>
+        </div>
+
+        <div class="waveform-legend" id="waveform-legend">
+          <!-- Dynamically populated -->
+        </div>
+      </section>
+
+      <!-- DAV: Chronological Activity Segmentation Timeline -->
+      <section class="card card-timeline">
+        <div class="card-header">
+          <div class="header-left">
+            <span class="card-label">DAV • Temporal Activity Segmentation</span>
+            <span class="channel-hint">Chronological State Transitions Across Windows</span>
+          </div>
+        </div>
+
+        <div class="timeline-visual-bar" id="timeline-bar">
+          <!-- Timeline segments populated via JS -->
+          <div class="timeline-empty-hint">Analyze a session to view temporal transitions</div>
+        </div>
+
+        <div class="table-container">
+          <table class="segments-table" id="segments-table">
+            <thead>
+              <tr>
+                <th>Start Time</th>
+                <th>End Time</th>
+                <th>Detected Activity</th>
+                <th>Windows</th>
+                <th>Avg Confidence</th>
+              </tr>
+            </thead>
+            <tbody id="segments-body">
+              <tr>
+                <td colspan="5" class="empty-row">No active segments. Click "Run Inference &amp; Audit" above.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Modal: Capstone Model Evaluation (MLF & DAV) -->
+    <div id="metrics-modal" class="modal-backdrop hidden">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h2 class="modal-title">Model Evaluation &amp; Metrics (MLF · DAV)</h2>
+          <button id="btn-close-metrics" class="btn-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="metrics-summary-bar">
+            <div class="metric-pill">
+              <span class="metric-pill-label">Model Type</span>
+              <span class="metric-pill-val">Random Forest (200 Trees)</span>
+            </div>
+            <div class="metric-pill">
+              <span class="metric-pill-label">Overall Test Accuracy</span>
+              <span id="meta-accuracy" class="metric-pill-val">85.0%</span>
+            </div>
+            <div class="metric-pill">
+              <span class="metric-pill-label">Feature Vector Size</span>
+              <span class="metric-pill-val">80 Features / Window</span>
+            </div>
+            <div class="metric-pill">
+              <span class="metric-pill-label">Window Length</span>
+              <span class="metric-pill-val">20 Samples (~10s)</span>
+            </div>
+          </div>
+
+          <div class="modal-sections-grid">
+            <!-- Confusion Matrix -->
+            <div class="modal-card">
+              <h3 class="modal-card-title">Confusion Matrix</h3>
+              <div class="cm-table-wrap">
+                <table class="cm-table" id="cm-table">
+                  <!-- Injected via JS -->
+                </table>
+              </div>
+            </div>
+
+            <!-- Top Feature Importances -->
+            <div class="modal-card">
+              <h3 class="modal-card-title">Top Feature Importances</h3>
+              <div class="features-list" id="features-list">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Class Performance Breakdown -->
+          <div class="modal-card full-width">
+            <h3 class="modal-card-title">Class Performance Breakdown</h3>
+            <table class="class-report-table" id="class-report-table">
+              <thead>
+                <tr>
+                  <th>Activity Class</th>
+                  <th>Precision</th>
+                  <th>Recall</th>
+                  <th>F1-Score</th>
+                  <th>Test Samples</th>
+                </tr>
+              </thead>
+              <tbody id="class-report-body">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
