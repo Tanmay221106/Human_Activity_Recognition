@@ -17,7 +17,9 @@
 - **Easy to work on & clutter-free:** Core operational metrics visible directly, secondary metrics accessible via evaluation modal.
 
 ## Current State of Built Components
-- `har_rf_model.joblib`: Pretrained Random Forest model trained on `all_activities_features.csv` (2,800 windows).
+- **Clean UI & Instant CSV Upload:** Redesigned into an intuitive, zero-clutter workflow where the user drops or chooses any `.csv` file and gets the primary activity result (`Walking`, `Standing`, `Sitting`, `Sleeping`), confidence score, activity distribution bars, and sensor waveform.
+- **Universal CSV Engine:** `har_engine.py` supports standard CSVs, column aliases (`acc_x`, `Accelerometer_X`, etc.), missing gyros (auto-padded), and sub-second window sampling.
+- **GitHub Sync:** Pushed latest clean UI commit to `https://github.com/Tanmay221106/Human_Activity_Recognition.git`.
 - `model_metadata.json`: Stored evaluation metrics (85.02% test accuracy, Confusion Matrix, Top 15 Feature Importances, Precision/Recall/F1 per class).
 - `har_engine.py`: Core processing engine handling raw file parsing (both regex `ax=...` format and standard CSV), signal filtering, feature extraction, RF inference, and INS security audit.
 - `trained_activity_classifier.py`: Core capstone classifier script, now updated and fixed:
@@ -34,8 +36,12 @@
 - `style.css`: Triple-tone aesthetic stylesheet.
 - `app.js`: Client-side logic for real-time inference, canvas waveform plotting, interactive timeline, and modal metrics.
 
+## Golden Rule: Continuous GitHub Sync
+- **MANDATORY:** Every time any change is made to this codebase, immediately stage all changed files, commit with a descriptive message, and push to `origin main` on GitHub (`https://github.com/Tanmay221106/Human_Activity_Recognition.git`).
+
 ## Last Prompts & Context
 - **Prompt:**
   > "go through the code of "trained_activity_classifier" this my 3rd capstone project and based on subjects MLF(machine learning fundamentals) , INS(information of network security) and DAV(Data analysis and visulazation) and my project is based on Human Activity Recognition (HAR) which recoginise human activity based on sensor data , please but a frontend for my project so make me a ui which should be only dual or triple tone not more than that and make sure that the color and font are not tooo flashy and neon make sure the things are not too vibrant and the overall ui that you are building for this particular is easy to work on and rest you cna make the changes which you think have advantages in this particular field don't add tooo much extra things and not required feedback also make sure only main things are visible mainly and rest of the thing can be ignored"
 - **Resume Directive:**
-  > "/continue and add a memory.md file to store the last prompt to contiune when error"
+  > "everytime you make the changes make sure to commit it in github everytime make sure"
+
